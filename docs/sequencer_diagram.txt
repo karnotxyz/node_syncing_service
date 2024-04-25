@@ -1,0 +1,19 @@
+title Syncing Service
+
+Event bridge->Syncing service: sync blocks
+Syncing service->DB:get last synced block
+DB-->Syncing service:last_synced_block
+note over Syncing service: fetch blocks after last_synced_block\nincrementally and execute transactions\non Madara.
+alt all blocks sync
+Syncing service->SQS:Verify events
+else a txn fails
+note over Syncing service: halt block syncing
+Syncing service->SNS: send alert with txn hash and error
+end
+SQS-->Syncing service: Verify events
+Syncing service->DB: get last_verified_block
+DB-->Syncing service:last_verified_block
+note over Syncing service: verify events of new blocks
+alt event verification fails
+Syncing service->SNS: send alert with event details without halting
+end
