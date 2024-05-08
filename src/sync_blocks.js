@@ -18,7 +18,6 @@ const { verifyEvents } = require("./verify_events");
 
 let feesDisabled = false;
 
-syncBlocks();
 async function syncBlocks() {
   try {
     await setDisableFee(false);
