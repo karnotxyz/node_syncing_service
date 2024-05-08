@@ -6,7 +6,7 @@ async function declare(tx, originalProvider, syncingProvider) {
   let contract_class = await originalProvider.getClassByHash(tx.class_hash);
   let result;
   if (tx.sender_address == "0x1") {
-    result = await axios.post(syncingProvider.nodeUrl, {
+    result = await postWithRetry(syncingProvider.nodeUrl, {
       id: 0,
       jsonrpc: "2.0",
       method: "starknet_addDeclareTransaction",
@@ -32,7 +32,7 @@ async function declare(tx, originalProvider, syncingProvider) {
         sierra_program: contract_class.sierra_program,
       };
     }
-    result = await axios.post(syncingProvider.nodeUrl, {
+    result = await postWithRetry(syncingProvider.nodeUrl, {
       id: 0,
       jsonrpc: "2.0",
       method: "starknet_addDeclareTransaction",
@@ -73,7 +73,7 @@ async function deploy_account(tx, syncingProvider) {
       await new Promise((resolve) => setTimeout(resolve, 6000));
     }
   }
-  let result = await axios.post(syncingProvider.nodeUrl, {
+  let result = await postWithRetry(syncingProvider.nodeUrl, {
     id: 0,
     jsonrpc: "2.0",
     method: "starknet_addDeployAccountTransaction",
@@ -91,13 +91,15 @@ async function deploy_account(tx, syncingProvider) {
     },
   });
   let txn_hash = result.data.result.transaction_hash;
-  await syncingProvider.waitForTransaction(txn_hash);
-
+  // sleep for 6 seconds
+  await new Promise((resolve) =>
+    setTimeout(resolve, process.env.SYNCING_NODE_BLOCK_TIME * 1000),
+  );
   return txn_hash;
 }
 
 async function invoke(tx, syncingProvider) {
-  let result = await axios.post(syncingProvider.nodeUrl, {
+  let result = await postWithRetry(syncingProvider.nodeUrl, {
     id: 0,
     jsonrpc: "2.0",
     method: "starknet_addInvokeTransaction",
@@ -116,23 +118,45 @@ async function invoke(tx, syncingProvider) {
   return result.data.result.transaction_hash;
 }
 
-// TOPO: handle by sending the actual transaction on L1
+// TODO: handle by sending the actual transaction on L1
 async function l1_handler(tx, syncingProvider) {
-  let result = await axios.post(syncingProvider.nodeUrl, {
+  let result = await postWithRetry(syncingProvider.nodeUrl, {
     id: 0,
     jsonrpc: "2.0",
     method: "starknet_consumeL1Message",
     params: {
       l1_handler_transaction: {
-        nonce: Number(tx.nonce),
+        nonce: tx.nonce,
         contract_address: tx.contract_address,
         entry_point_selector: tx.entry_point_selector,
         calldata: tx.calldata,
+        version: tx.version,
       },
       fee: "0xfffffff",
     },
   });
+  console.log(result.data);
   return "L1_HANDLER";
+}
+
+async function postWithRetry(url, data) {
+  const MAX_ATTEMPTS = 3;
+  const SLEEP = 30000;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    let result = await axios.post(url, data);
+    // code 55 means account validaton failed
+    if (result.data.error && result.data.error.code === 55) {
+      // it's possible that some previous txn makes this txs succesful,
+      // but the previous one is still in mempool. so we wait and retry.
+      // for ex: a txn to fund the account adds balance but it's still mempool
+      // so the current txn fails with fee error.
+      console.log("Account validation failed, retrying in 30 seconds");
+      await new Promise((resolve) => setTimeout(resolve, SLEEP));
+    } else {
+      return result;
+    }
+  }
+  throw new Error("Max retries exceeded for transaction");
 }
 
 module.exports = {
