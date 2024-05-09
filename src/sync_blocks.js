@@ -94,6 +94,19 @@ async function syncBlocks() {
 
 async function syncBlock(block_no, skip_transactions) {
   let blockWithTxs = await originalProvider.getBlockWithTxs(block_no);
+  logger.info(
+    `Found ${blockWithTxs.transactions.length} transactions to process in block - ${block_no}`,
+  );
+  if (blockWithTxs.transactions.length == 0) {
+    logger.error(
+      `No transactions to process in block - ${block_no}. This shouldn't be possible, throwing an error`,
+    );
+    await sendAlert(
+      "[SYNCING_SERVICE] No transactions to process",
+      `No transactions to process in block - ${block_no}. This shouldn't be possible`,
+    );
+    throw "No transactions to process in block";
+  }
   for (let i = skip_transactions; i < blockWithTxs.transactions.length; i++) {
     let tx = blockWithTxs.transactions[i];
     console.log(`Processing transaction - ${tx.transaction_hash}`);

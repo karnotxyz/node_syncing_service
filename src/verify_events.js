@@ -124,7 +124,6 @@ async function verifyEvents() {
     block_no <= latestBlock;
     block_no++
   ) {
-    console.log("hi am inside here");
     logger.info(`Verifying block: ${block_no} ...`);
     await matchBlock(block_no, originalProvider, syncingProvider);
     await syncDbCreateOrUpdate(LAST_VERIFIED_BLOCK_KEY, block_no);
