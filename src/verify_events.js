@@ -38,6 +38,11 @@ function matchEvents(originalEvents, syncingEvents) {
 
 async function matchTransactions(txn_hash, originalProvider, syncingProvider) {
   try {
+    let originalTx = await originalProvider.getTransactionByHash(txn_hash);
+    if (Number(originalTx.max_fee) == 0) {
+      logger.info(`ℹ️ Skipping txn with zero fees: ${txn_hash}`);
+      return true;
+    }
     let [originalEvents, syncingEvents] = await Promise.all([
       getEvents(txn_hash, originalProvider),
       getEvents(txn_hash, syncingProvider),
@@ -124,9 +129,15 @@ async function verifyEvents() {
     block_no <= latestBlock;
     block_no++
   ) {
-    logger.info(`Verifying block: ${block_no} ...`);
-    await matchBlock(block_no, originalProvider, syncingProvider);
-    await syncDbCreateOrUpdate(LAST_VERIFIED_BLOCK_KEY, block_no);
+    try {
+      logger.info(`Verifying block: ${block_no} ...`);
+      await matchBlock(block_no, originalProvider, syncingProvider);
+      await syncDbCreateOrUpdate(LAST_VERIFIED_BLOCK_KEY, block_no);
+    } catch (err) {
+      logger.error(`❌ Error verifying block: ${block_no}, error: ${err}`);
+      console.error(err);
+      return;
+    }
   }
 }
 
