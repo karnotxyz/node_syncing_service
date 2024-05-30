@@ -14,22 +14,38 @@ async function getEvents(txn_hash, provider) {
   return receipt.events;
 }
 
-function fitlerNonMatchableEvents(events) {
+function fitlerNonMatchableEvents(events, sequencerAddress) {
   return events.filter(
     (event) =>
-      event.from_address ==
-        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7" &&
-      event.data.keys[0] ==
-        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9",
+      !(
+        event.from_address ==
+          "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7" &&
+        event.keys[0] ==
+          "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9" &&
+        event.data[1] == sequencerAddress
+      ),
   );
 }
 
 function matchEvents(originalEvents, syncingEvents) {
-  let originalMatchableEvents = fitlerNonMatchableEvents(originalEvents);
-  let syncingMatchableEvents = fitlerNonMatchableEvents(syncingEvents);
+  let originalMatchableEvents = fitlerNonMatchableEvents(
+    originalEvents,
+    "0x46a89ae102987331d369645031b49c27738ed096f2789c24449966da4c6de6b",
+  );
+  let syncingMatchableEvents = fitlerNonMatchableEvents(
+    syncingEvents,
+    "0xdead",
+  );
   if (originalMatchableEvents.length != syncingMatchableEvents.length) {
     return false;
   }
+
+  logger.info(
+    `Actual events count, original - ${originalEvents.length}, syncing - ${syncingEvents.length}`,
+  );
+  logger.info(
+    `Matching events count, original - ${originalMatchableEvents.length}, syncing - ${syncingMatchableEvents.length}`,
+  );
   return (
     JSON.stringify(originalMatchableEvents) ==
     JSON.stringify(syncingMatchableEvents)
