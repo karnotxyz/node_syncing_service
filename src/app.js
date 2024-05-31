@@ -5,13 +5,17 @@ const sequelize = require("../models/index");
 const syncBlocks = require("./sync_blocks");
 const logger = require("./logger");
 const { verifyEvents } = require("./verify_events");
+const bodyParser = require("body-parser");
 require("./sync_blocks");
+
+// parse application/json
+app.use(bodyParser.json());
 
 const PORT = process.env.PORT;
 
 app.post("/sync", async (req, res) => {
   try {
-    syncBlocks();
+    syncBlocks(req.body.syncTo);
     res.status(200).send("Syncing started");
   } catch (e) {
     console.error(e);

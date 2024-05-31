@@ -18,7 +18,7 @@ const { verifyEvents } = require("./verify_events");
 
 let feesDisabled = false;
 
-async function syncBlocks() {
+async function syncBlocks(syncTo) {
   try {
     await setDisableFee(false);
   } catch (err) {
@@ -54,7 +54,11 @@ async function syncBlocks() {
     skipTransactions = skipTransactions.value;
   }
 
-  const latestBlock = await getLatestBlockNumber(originalProvider);
+  let latestBlock = await getLatestBlockNumber(originalProvider);
+  if (syncTo) {
+    latestBlock = syncTo;
+  }
+
   logger.info(`Last synced block - ${lastSyncedBlock}`);
   logger.info(`Latest block - ${latestBlock}`);
 
